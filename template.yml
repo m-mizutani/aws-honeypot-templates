@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Low interaction honeypot template"
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  VpcId:
+    Type: String
+  SubnetId:
+    Type: String
+  KeyName:
+    Type: String
+
+Resources:
+  Honeypot:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.nano
+      ImageId: ami-07ad4b1c3af1ea214
+      NetworkInterfaces:
+        - NetworkInterfaceId:
+            Ref: ManagementNetworkInterface
+          DeviceIndex: 0
+        - NetworkInterfaceId:
+            Ref: MonitorNetworkInterface
+          DeviceIndex: 1
+      KeyName:
+        Ref: KeyName
+
+  MonitorIPAddr:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  ManagementIPAddr:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  MonitorIPAddrAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId:
+        Fn::GetAtt: MonitorIPAddr.AllocationId
+      NetworkInterfaceId:
+        Ref: MonitorNetworkInterface
+
+  MonitorNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId:
+        Ref: SubnetId
+      GroupSet:
+        - Ref: MonitoringSG
+
+  ManagementIPAddrAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId:
+        Fn::GetAtt: ManagementIPAddr.AllocationId
+      NetworkInterfaceId:
+        Ref: ManagementNetworkInterface
+
+  ManagementNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId:
+        Ref: SubnetId
+      GroupSet:
+        - Ref: ManagementSG
+
+  DataStore:
+    Type: AWS::S3::Bucket
+
+  ManagementSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "honeypot-mgmt"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+      VpcId:
+        Ref: VpcId
+
+  MonitoringSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "honeypot-monitoring"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+      VpcId:
+        Ref: VpcId
+
