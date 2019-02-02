@@ -24,7 +24,10 @@ Resources:
           DeviceIndex: 1
       KeyName:
         Ref: KeyName
+      IamInstanceProfile:
+        Ref: EC2Profile
 
+  # Elastic IP address
   MonitorIPAddr:
     Type: AWS::EC2::EIP
     Properties:
@@ -34,6 +37,7 @@ Resources:
     Properties:
       Domain: vpc
 
+  # Associations
   MonitorIPAddrAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -41,7 +45,6 @@ Resources:
         Fn::GetAtt: MonitorIPAddr.AllocationId
       NetworkInterfaceId:
         Ref: MonitorNetworkInterface
-
   MonitorNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -50,6 +53,7 @@ Resources:
       GroupSet:
         - Ref: MonitoringSG
 
+  # Network interfaces
   ManagementIPAddrAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -57,7 +61,6 @@ Resources:
         Fn::GetAtt: ManagementIPAddr.AllocationId
       NetworkInterfaceId:
         Ref: ManagementNetworkInterface
-
   ManagementNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -66,9 +69,7 @@ Resources:
       GroupSet:
         - Ref: ManagementSG
 
-  DataStore:
-    Type: AWS::S3::Bucket
-
+  # Security groups
   ManagementSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -80,7 +81,6 @@ Resources:
           ToPort: 22
       VpcId:
         Ref: VpcId
-
   MonitoringSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -93,3 +93,40 @@ Resources:
       VpcId:
         Ref: VpcId
 
+  DataStore:
+    Type: AWS::S3::Bucket
+
+
+  # --------------------------------------------------------
+  # Instance Profile
+  EC2Profile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2Role
+
+  # --------------------------------------------------------
+  # IAM Roles
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: ["ec2.amazonaws.com"]
+            Action: ["sts:AssumeRole"]
+      Path: "/"
+      Policies:
+        - PolicyName: "S3Access"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - Fn::GetAtt: DataStore.Arn
+                  - Fn::Sub: [ "${BucketArn}/*", { BucketArn: { "Fn::GetAtt": DataStore.Arn } } ]
