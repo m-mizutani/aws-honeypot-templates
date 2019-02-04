@@ -1,11 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Honeypot backend"
 Transform: AWS::Serverless-2016-10-31
-Parameters:
-  S3Bucket:
-    Type: String
-    Default: ""
-
+Resources:
   DataStore:
     Type: AWS::S3::Bucket
     Properties:

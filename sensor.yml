@@ -34,12 +34,7 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-  ManagementIPAddr:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
 
-  # Associations
   MonitorIPAddrAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -47,6 +42,7 @@ Resources:
         Fn::GetAtt: MonitorIPAddr.AllocationId
       NetworkInterfaceId:
         Ref: MonitorNetworkInterface
+
   MonitorNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -55,7 +51,12 @@ Resources:
       GroupSet:
         - Ref: MonitoringSG
 
-  # Network interfaces
+#  # Network interfaces
+  ManagementIPAddr:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
   ManagementIPAddrAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -63,6 +64,7 @@ Resources:
         Fn::GetAtt: ManagementIPAddr.AllocationId
       NetworkInterfaceId:
         Ref: ManagementNetworkInterface
+
   ManagementNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
