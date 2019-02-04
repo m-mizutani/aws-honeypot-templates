@@ -8,6 +8,8 @@ Parameters:
     Type: String
   KeyName:
     Type: String
+  S3Bucket:
+    Type: String
 
 Resources:
   Honeypot:
@@ -93,17 +95,6 @@ Resources:
       VpcId:
         Ref: VpcId
 
-  DataStore:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName:
-        Fn::Sub:
-          - "${StackName}-data-store"
-          - StackName: {"Ref": "AWS::StackName"}
-      NotificationConfiguration:
-        TopicConfigurations:
-        - Topic: {'Ref': 'DataStoreNotify'}
-          Event: 's3:ObjectCreated:*'
 
   # --------------------------------------------------------
   # Instance Profile
@@ -136,30 +127,5 @@ Resources:
                   - s3:PutObject
                   - s3:GetObject
                 Resource:
-                  - Fn::GetAtt: DataStore.Arn
-                  - Fn::Sub: [ "${BucketArn}/*", { BucketArn: { "Fn::GetAtt": DataStore.Arn } } ]
-
-  DataStoreNotify:
-    Type: AWS::SNS::Topic
-
-  SNSPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service: ['s3.amazonaws.com']
-          Action:
-            - sns:Publish
-          Resource:
-            - Ref: DataStoreNotify
-          Condition:
-            ArnLike:
-              aws:SourceArn:
-                Fn::Sub:
-                  - "arn:aws:s3:::${StackName}-data-store"
-                  - StackName: {"Ref": "AWS::StackName"}
-      Topics:
-        - Ref: DataStoreNotify
+                  - Fn::Sub: [ "arn:aws:s3:::${BucketArn}", { BucketArn: { "Ref": S3Bucket } } ]
+                  - Fn::Sub: [ "arn:aws:s3:::${BucketArn}/*", { BucketArn: { "Ref": S3Bucket } } ]

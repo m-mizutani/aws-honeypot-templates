@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Honeypot backend"
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  S3Bucket:
+    Type: String
+    Default: ""
+
+  DataStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub:
+          - "${StackName}-honeypot-logs"
+          - StackName: {"Ref": "AWS::StackName"}
+      NotificationConfiguration:
+        TopicConfigurations:
+        - Topic: {'Ref': 'DataStoreNotify'}
+          Event: 's3:ObjectCreated:*'
+
+  DataStoreNotify:
+    Type: AWS::SNS::Topic
+
+  SNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ['s3.amazonaws.com']
+          Action:
+            - sns:Publish
+          Resource:
+            - Ref: DataStoreNotify
+          Condition:
+            ArnLike:
+              aws:SourceArn:
+                Fn::Sub:
+                  - "arn:aws:s3:::${StackName}-honeypot-logs"
+                  - StackName: {"Ref": "AWS::StackName"}
+      Topics:
+        - Ref: DataStoreNotify
