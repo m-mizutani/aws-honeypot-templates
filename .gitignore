@@ -1,5 +1,7 @@
 sam.yml
 __pycache__
-output/cwlogs/src/dpkt*
+output/cwlogs/src/six.py
+output/cwlogs/src/*/
 output/cwlogs/src/test.json
 output/*/src.zip
+

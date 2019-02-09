@@ -19,7 +19,7 @@ S3_BUCKET_NAME=`echo $RESOURCES | jq 'select(.LogicalResourceId == "DataStore") 
 SNS_TOPIC_ARN=`echo $RESOURCES | jq 'select(.LogicalResourceId == "DataStoreNotify") | .PhysicalResourceId' -r`
 
 rm -f src.zip
-cd src && pip3 install dpkt --target . && zip -q ../src.zip -r . -x */__pycache__/* && cd ..
+cd src && pip3 install dpkt --target . && zip -q ../src.zip -r main.py dpkt* -x */__pycache__/* && cd ..
 
 aws cloudformation package \
         --template-file $TEMPLATE_FILE \
