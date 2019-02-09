@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  S3BucketName:
+    Type: String
+  SNSTopicArn:
+    Type: String
+
+Resources:
+  Handler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src.zip
+      Handler: main.handler
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt: LambdaRole.Arn
+      Timeout: 30
+      Events:
+        PcapFileCreated:
+          Type: SNS
+          Properties:
+            Topic:
+              Ref:
+                SNSTopicArn
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: ["lambda.amazonaws.com"]
+            Action: ["sts:AssumeRole"]
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: "S3Access"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - Fn::Sub: [ "arn:aws:s3:::${BucketArn}/*", { BucketArn: { "Ref": S3BucketName } } ]
