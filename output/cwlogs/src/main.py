@@ -4,6 +4,8 @@ import logging
 import json
 import ipaddress
 import base64
+import time
+import os
 from curses import ascii
 
 import dpkt
@@ -64,21 +66,49 @@ def extract_stream_info(pcap):
 def byte_to_readable(bdata):
     s = ''
     for b in bdata:
-        if ascii.isprint(b) or ascii.isspace(b):
-            s += chr(b)
-        else:
-            s += '.'
+        s += chr(b) if ascii.isprint(b) or ascii.isspace(b) else '.'
 
     return s
+
+
+class LogStream:
+    def __init__(self, log_group_name, log_stream_name):
+        self._log_group_name = log_group_name
+        self._log_stream_name = log_stream_name
+        self._cwlogs = boto3.client('logs')
+
+        resp = self._cwlogs.describe_log_streams(
+            logGroupName=self._log_group_name,
+            logStreamNamePrefix=self._log_stream_name
+        )
+        self._token = resp['logStreams'][0]['uploadSequenceToken']
+
+    def put(self, timestamp, msg):
+        resp = self._cwlogs.put_log_events(
+            logGroupName=self._log_group_name,
+            logStreamName=self._log_stream_name,
+            logEvents=[
+                {
+                    'timestamp': timestamp,
+                    'message': msg,
+                },
+            ],
+            sequenceToken=self._token)
+        print(resp)
+        logger.info("put %s/%s => %s", self._log_group_name,
+                    self._log_stream_name, resp)
+        self._token = resp['nextSequenceToken']
 
 
 def handler(event, context):
     logger.info("%s", json.dumps(event))
     results = []
+    log_stream = LogStream(os.getenv('LOG_GROUP'), os.getenv('LOG_STREAM'))
 
     for pcap in extract_pcap_data(event):
         init_ts, last_ts, src_addr, dst_port, payload = extract_stream_info(
             pcap)
+
         log = {
             'init_ts': init_ts,
             'last_ts': last_ts,
@@ -88,6 +118,8 @@ def handler(event, context):
             'readable': byte_to_readable(payload),
         }
         results.append(log)
+
+        log_stream.put(int(init_ts) * 1000, json.dumps(log))
 
     logger.info("result = %s", json.dumps(results))
     return results

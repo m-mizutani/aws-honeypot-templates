@@ -24,6 +24,26 @@ Resources:
             Topic:
               Ref:
                 SNSTopicArn
+      Environment:
+        Variables:
+          LOG_GROUP:
+            Ref: LogStore
+          LOG_STREAM:
+            Ref: LogStream
+
+  LogStore:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: [ "/honeypot/${StackName}", { StackName: { "Ref": "AWS::StackName" } } ]
+      RetentionInDays: 3653
+
+  LogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName:
+        Ref: LogStore
+      LogStreamName: FlowLogs
 
   LambdaRole:
     Type: AWS::IAM::Role
@@ -48,3 +68,14 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - Fn::Sub: [ "arn:aws:s3:::${BucketArn}/*", { BucketArn: { "Ref": S3BucketName } } ]
+        - PolicyName: "LogOutput"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Resource:
+                  - Fn::Sub: "arn:aws:logs:${AWS::Region}:*:log-group:${LogStore}"
+                  - Fn::Sub: "arn:aws:logs:${AWS::Region}:*:log-group:${LogStore}:*:*"
