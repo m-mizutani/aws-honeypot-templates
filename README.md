@@ -67,7 +67,7 @@ $ ./deploy.sh <region> <backend_stack_name> <output_stack_name> <code_s3_bucket>
 - `backend_stack_name`: backend stack name (e.g. `my-honeypot-backend`)
 - `output_stack_name`: Name of a new CloudFormation stack
 - `code_s3_bucket`: S3 bucket name to store Lambda code (e.g. `some-other-bucket`)
-- `code_s3_prefix`: S3 key prefix to store Lambda code. NOTE: backslash `/` will be appended to tail of specified prefix. (e.g. `function`)
+- `code_s3_prefix`: S3 key prefix to store Lambda code. NOTE: backslash `/` will be appended to tail of specified prefix automatically. (e.g. `function`)
 
 
 
