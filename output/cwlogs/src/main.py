@@ -19,6 +19,7 @@ def extract_stream_info(pcap):
     base_seq, src_addr, dst_port = None, None, None
     init_ts, last_ts = None, None
     segments = []
+    payload = b''
 
     for ts, buf in pcap:
         if not init_ts:
@@ -33,20 +34,21 @@ def extract_stream_info(pcap):
         if not src_addr:
             src_addr = ipaddress.IPv4Address(ip.src)
 
-        if ip.p != 6:
-            continue
+        if ip.p == 6:
+            tcp = ip.data
+            if not dst_port:
+                dst_port = tcp.dport
+            if not base_seq:
+                base_seq = tcp.seq
+                if tcp.flags & dpkt.tcp.TH_SYN > 0:
+                    base_seq += 1
 
-        tcp = ip.data
-        if not dst_port:
-            dst_port = tcp.dport
-        if not base_seq:
-            base_seq = tcp.seq
-            if tcp.flags & dpkt.tcp.TH_SYN > 0:
-                base_seq += 1
+            segments.append((tcp.seq - base_seq, tcp.data))
+        elif ip.p == 17:
+            udp = ip.data
+            dst_port = udp.dport
+            payload += udp.data
 
-        segments.append((tcp.seq - base_seq, tcp.data))
-
-    payload = b''
     ptr = 0
     for seg in sorted(segments, key=lambda x: x[0]):
         if ptr < seg[0]:
