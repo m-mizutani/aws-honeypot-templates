@@ -76,28 +76,37 @@ class LogStream:
         self._log_group_name = log_group_name
         self._log_stream_name = log_stream_name
         self._cwlogs = boto3.client('logs')
+        self._reset_token()
 
+    def _reset_token(self):
         resp = self._cwlogs.describe_log_streams(
             logGroupName=self._log_group_name,
             logStreamNamePrefix=self._log_stream_name
         )
         self._token = resp['logStreams'][0]['uploadSequenceToken']
 
-    def put(self, timestamp, msg):
-        resp = self._cwlogs.put_log_events(
-            logGroupName=self._log_group_name,
-            logStreamName=self._log_stream_name,
-            logEvents=[
-                {
+    def put(self, timestamp, log, retry=0):
+        if retry > 8:
+            raise Exception("Fail to put event into CloudWatch Logs")
+
+        try:
+            resp = self._cwlogs.put_log_events(
+                logGroupName=self._log_group_name,
+                logStreamName=self._log_stream_name,
+                logEvents=[{
                     'timestamp': timestamp,
-                    'message': msg,
-                },
-            ],
-            sequenceToken=self._token)
-        print(resp)
-        logger.info("put %s/%s => %s", self._log_group_name,
-                    self._log_stream_name, resp)
-        self._token = resp['nextSequenceToken']
+                    'message': json.dumps(log),
+                }],
+                sequenceToken=self._token)
+
+            logger.info("put %s/%s => %s", self._log_group_name,
+                        self._log_stream_name, resp)
+            self._token = resp['nextSequenceToken']
+
+        except Exception as err:
+            logger.error("error = %s", err)
+            self._reset_token()
+            self.put(timestamp, log, retry+1)
 
 
 def handler(event, context):
@@ -105,7 +114,7 @@ def handler(event, context):
     results = []
     log_stream = LogStream(os.getenv('LOG_GROUP'), os.getenv('LOG_STREAM'))
 
-    for pcap in extract_pcap_data(event):
+    for pcap, s3path in extract_pcap_data(event):
         init_ts, last_ts, src_addr, dst_port, payload = extract_stream_info(
             pcap)
 
@@ -116,10 +125,11 @@ def handler(event, context):
             'dst_port': dst_port,
             'payload': base64.b64encode(payload).decode('utf8'),
             'readable': byte_to_readable(payload),
+            's3path': s3path,
         }
         results.append(log)
 
-        log_stream.put(int(init_ts) * 1000, json.dumps(log))
+        log_stream.put(int(init_ts) * 1000, log)
 
     logger.info("result = %s", json.dumps(results))
     return results
@@ -139,4 +149,4 @@ def extract_pcap_data(sns_event):
                                  Key=s3_record['s3']['object']['key'])
             logger.info('s3 reponse: %s', resp)
             pcap = dpkt.pcap.Reader(resp['Body'])
-            yield pcap
+            yield pcap, 's3://{}/{}'.format(s3_record['s3']['bucket']['name'], s3_record['s3']['object']['key'])
