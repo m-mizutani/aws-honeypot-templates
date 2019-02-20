@@ -39,7 +39,7 @@ $ aws cloudformation deploy \
     --template-file sensor.yml \
     --stack-name <sensor_stack_name> \
     --capabilities CAPABILITY_IAM \
-    --parameters \
+    --parameter-overrides \
     VpcId=<VpcId> \
     SubnetId=<SubnetId> \
     KeyName=<KeyName> \
